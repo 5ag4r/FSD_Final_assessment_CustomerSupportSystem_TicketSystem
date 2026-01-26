@@ -1,0 +1,1 @@
+This is Customer support system where users can login and open tickets to address the issue they are facing and admin can update the status to open, ongoing and complete. This project is done with PDO user sessions and csrf tonken.
