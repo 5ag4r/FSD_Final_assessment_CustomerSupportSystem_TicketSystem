@@ -10,30 +10,41 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 
 $conn = connection();
 
-// Handle status update
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ticket_id'], $_POST['status'])) {
-    $update = $conn->prepare("UPDATE tickets SET status=? WHERE id=?");
-    $update->execute([$_POST['status'], $_POST['ticket_id']]);
-    header("Location: admin_dashboard.php"); // refresh page to show updated status
-    exit();
+// Get search term
+$search = $_GET['search'] ?? '';
+
+// Fetch tickets (with optional search)
+if ($search !== '') {
+    $stmt = $conn->prepare("
+        SELECT t.id, t.subject, t.issue_type, t.priority, t.status, t.created_at,
+               c.name AS customer_name
+        FROM tickets t
+        JOIN customer_acc c ON t.user_id = c.id
+        WHERE t.subject LIKE ?
+        ORDER BY t.created_at DESC
+    ");
+    $stmt->execute(['%' . $search . '%']);
+} else {
+    $stmt = $conn->prepare("
+        SELECT t.id, t.subject, t.issue_type, t.priority, t.status, t.created_at,
+               c.name AS customer_name
+        FROM tickets t
+        JOIN customer_acc c ON t.user_id = c.id
+        ORDER BY t.created_at DESC
+    ");
+    $stmt->execute();
 }
 
-// Fetch all tickets and their owners
-$stmt = $conn->prepare("SELECT t.id, t.subject, t.issue_type, t.priority, t.status, t.created_at, c.name AS customer_name 
-                        FROM tickets t 
-                        JOIN customer_acc c ON t.user_id = c.id
-                        ORDER BY t.created_at DESC");
-$stmt->execute();
 $tickets = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -71,8 +82,9 @@ $tickets = $stmt->fetchAll(PDO::FETCH_ASSOC);
             padding: 4px;
         }
 
-        button {
-            padding: 4px 8px;
+        .msg {
+            margin-left: 8px;
+            font-size: 14px;
         }
 
         .logout-btn {
@@ -87,18 +99,36 @@ $tickets = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .logout-btn:hover {
             background-color: #d32f2f;
         }
+
+        .search-box {
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 
 <body>
+
     <header>
-        <h1>Welcome, Admin <?php echo htmlspecialchars($_SESSION['user_name']); ?></h1>
+        <h1>Welcome, Admin <?= htmlspecialchars($_SESSION['user_name']) ?></h1>
         <form action="logout.php" method="post">
             <button type="submit" class="logout-btn">Logout</button>
         </form>
     </header>
 
     <h2>All Tickets</h2>
+
+    <!-- 🔍 SEARCH -->
+    <form method="get" class="search-box">
+        <input
+            type="text"
+            name="search"
+            placeholder="Search by subject..."
+            value="<?= htmlspecialchars($search) ?>">
+        <button type="submit">Search</button>
+        <?php if ($search): ?>
+            <a href="admin_dashboard.php">Clear</a>
+        <?php endif; ?>
+    </form>
 
     <table>
         <tr>
@@ -111,29 +141,61 @@ $tickets = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <th>Created At</th>
             <th>Update Status</th>
         </tr>
-        <?php foreach ($tickets as $ticket) : ?>
+
+        <?php foreach ($tickets as $ticket): ?>
             <tr>
-                <td><?php echo $ticket['id']; ?></td>
-                <td><?php echo htmlspecialchars($ticket['subject']); ?></td>
-                <td><?php echo htmlspecialchars($ticket['issue_type']); ?></td>
-                <td><?php echo htmlspecialchars($ticket['priority']); ?></td>
-                <td><?php echo htmlspecialchars($ticket['customer_name']); ?></td>
-                <td><?php echo htmlspecialchars($ticket['status']); ?></td>
-                <td><?php echo $ticket['created_at']; ?></td>
+                <td><?= $ticket['id'] ?></td>
+                <td><?= htmlspecialchars($ticket['subject']) ?></td>
+                <td><?= htmlspecialchars($ticket['issue_type']) ?></td>
+                <td><?= htmlspecialchars($ticket['priority']) ?></td>
+                <td><?= htmlspecialchars($ticket['customer_name']) ?></td>
+                <td><?= htmlspecialchars($ticket['status']) ?></td>
+                <td><?= $ticket['created_at'] ?></td>
                 <td>
-                    <form method="post">
-                        <input type="hidden" name="ticket_id" value="<?php echo $ticket['id']; ?>">
-                        <select name="status">
-                            <option value="Open" <?php if ($ticket['status'] == 'Open') echo 'selected'; ?>>Open</option>
-                            <option value="In Progress" <?php if ($ticket['status'] == 'In Progress') echo 'selected'; ?>>In Progress</option>
-                            <option value="Closed" <?php if ($ticket['status'] == 'Closed') echo 'selected'; ?>>Closed</option>
-                        </select>
-                        <button type="submit">Update</button>
-                    </form>
+                    <select onchange="updateStatus(this, <?= $ticket['id'] ?>)">
+                        <option value="Open" <?= $ticket['status'] == 'Open' ? 'selected' : '' ?>>Open</option>
+                        <option value="In Progress" <?= $ticket['status'] == 'In Progress' ? 'selected' : '' ?>>In Progress</option>
+                        <option value="Closed" <?= $ticket['status'] == 'Closed' ? 'selected' : '' ?>>Closed</option>
+                    </select>
+                    <span class="msg"></span>
                 </td>
             </tr>
         <?php endforeach; ?>
     </table>
+
+    <script>
+        function updateStatus(selectEl, ticketId) {
+            const status = selectEl.value;
+            const msg = selectEl.nextElementSibling;
+
+            const formData = new FormData();
+            formData.append("ticket_id", ticketId);
+            formData.append("status", status);
+
+            msg.textContent = "Saving...";
+            msg.style.color = "gray";
+
+            fetch("update_ticket_status.php", {
+                    method: "POST",
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        msg.textContent = "✔ Updated";
+                        msg.style.color = "green";
+                    } else {
+                        msg.textContent = "✖ Failed";
+                        msg.style.color = "red";
+                    }
+                })
+                .catch(() => {
+                    msg.textContent = "Error";
+                    msg.style.color = "red";
+                });
+        }
+    </script>
+
 </body>
 
 </html>
