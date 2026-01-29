@@ -22,22 +22,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $name = trim($_POST['name']);
         $email = trim($_POST['email']);
-        $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+        $password = $_POST['password'];
 
-        try {
-            $stmt = $conn->prepare(
-                "INSERT INTO customer_acc (name, email, pass) VALUES (?, ?, ?)"
-            );
-            $stmt->execute([$name, $email, $password]);
+        if (strlen($password) < 8) {
+            $error = "Passwrod must be 8 character long";
+        } else {
 
-            $success = "Registration successful. Please login.";
-        } catch (PDOException $e) {
+            $password = password_hash($password, PASSWORD_DEFAULT);
 
-            // Duplicate email (UNIQUE constraint)
-            if ($e->getCode() == 23000) {
-                $error = "Email already exists. Please login instead.";
-            } else {
-                $error = "Something went wrong. Please try again later.";
+            try {
+                $stmt = $conn->prepare(
+                    "INSERT INTO customer_acc (name, email, pass) VALUES (?, ?, ?)"
+                );
+                $stmt->execute([$name, $email, $password]);
+
+                $success = "Registration successful. Please login.";
+            } catch (PDOException $e) {
+
+                // Duplicate email (UNIQUE constraint)
+                if ($e->getCode() == 23000) {
+                    $error = "Email already exists. Please login instead.";
+                } else {
+                    $error = "Something went wrong. Please try again later.";
+                }
             }
         }
     }
