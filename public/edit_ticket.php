@@ -71,3 +71,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </body>
 
 </html>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #f5f5f5;
+        padding: 30px;
+    }
+
+    h2 {
+        margin-bottom: 20px;
+    }
+
+    form {
+        background: #fff;
+        padding: 20px;
+        width: 350px;
+        border: 1px solid #ddd;
+    }
+
+    input,
+    select,
+    textarea {
+        width: 100%;
+        padding: 8px;
+        margin-bottom: 12px;
+        border: 1px solid #ccc;
+        font-size: 14px;
+    }
+
+    textarea {
+        height: 90px;
+        resize: vertical;
+    }
+
+    button {
+        padding: 8px 16px;
+        background: #333;
+        color: #fff;
+        border: none;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background: #555;
+    }
+
+    a {
+        display: inline-block;
+        margin-top: 15px;
+        text-decoration: none;
+        color: #333;
+    }
+</style>

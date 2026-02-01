@@ -117,7 +117,7 @@ $tickets = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <h2>All Tickets</h2>
 
-    <!-- 🔍 SEARCH -->
+    <!--SEARCH -->
     <form method="get" class="search-box">
         <input
             type="text"
