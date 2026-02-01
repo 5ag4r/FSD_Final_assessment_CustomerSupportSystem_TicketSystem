@@ -3,9 +3,9 @@
 function connection()
 {
     $servername = "localhost";
-    $username   = "root";
-    $password   = "";
-    $dbname     = "customer_support_system";
+    $username   = "np03cs4a240280";
+    $password   = "xfGps6OugM";
+    $dbname     = "np03cs4a240280";
 
     try {
         $conn = new PDO("mysql:host=$servername;dbname=$dbname", $username, $password);
